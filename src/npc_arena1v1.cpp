@@ -6,7 +6,6 @@
 * Reworked by XDev
 */
 
-#include "ScriptMgr.h"
 #include "ArenaTeamMgr.h"
 #include "Common.h"
 #include "DisableMgr.h"
@@ -179,7 +178,7 @@ public:
         sArenaTeamMgr->AddArenaTeam(arenaTeam);
         arenaTeam->AddMember(player->GetGUID());
 
-        ChatHandler(player->GetSession()).SendSysMessage("1v1 Arenateam erfolgreich erstellt!");
+        ChatHandler(player->GetSession()).SendSysMessage("1v1 Arenateam successfully created!");
 
         return true;
     }
@@ -248,7 +247,7 @@ public:
         case 2: // Join Queue Arena (rated)
         {
             if (Arena1v1CheckTalents(player) && JoinQueueArena(player, me, true) == false)
-                ChatHandler(player->GetSession()).SendSysMessage("Something went wrong when joins the queue.");
+                ChatHandler(player->GetSession()).SendSysMessage("Something went wrong when joining the queue.");
 
             player->CLOSE_GOSSIP_MENU();
             return true;
@@ -258,7 +257,7 @@ public:
         case 20: // Join Queue Arena (unrated)
         {
             if (Arena1v1CheckTalents(player) && JoinQueueArena(player, me, false) == false)
-                ChatHandler(player->GetSession()).SendSysMessage("Something went wrong when joins the queue.");
+                ChatHandler(player->GetSession()).SendSysMessage("Something went wrong when joining the queue.");
 
             player->CLOSE_GOSSIP_MENU();
             return true;
