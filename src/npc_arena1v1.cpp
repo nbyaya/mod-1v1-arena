@@ -18,6 +18,8 @@
 #include "npc_arena1v1.h"
 #include "Log.h"
 
+bool Arena1v1AnnounceModule = 1;
+
 class arena1v1_worldscript : public WorldScript
 {
 public:
@@ -30,10 +32,24 @@ public:
             std::string cfg_file = conf_path + "/1v1arena.conf";
 
             std::string cfg_def_file = cfg_file + ".dist";
-
             sConfigMgr->LoadMore(cfg_def_file.c_str());
-
             sConfigMgr->LoadMore(cfg_file.c_str());
+            Arena1v1AnnounceModule = sConfigMgr->GetBoolDefault("Arena.1v1.Announcer", 1);
+        }
+    }
+};
+
+class Arena1v1Announce : public PlayerScript
+{
+
+public:
+
+    Arena1v1Announce() : PlayerScript("Arena1v1Announce") {}
+
+    void OnLogin(Player* player)  override
+    {
+        if (sConfigMgr->GetBoolDefault("CodeboxNPC.Announce", true)) {
+            ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00CodeboxNPC |rmodule.");
         }
     }
 };
@@ -326,4 +342,5 @@ void AddSC_npc_1v1arena()
 {
     new arena1v1_worldscript();
     new npc_1v1arena();
+    new Arena1v1Announce();
 }
