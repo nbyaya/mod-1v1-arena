@@ -1,3 +1,5 @@
+[worldserver]
+
 ###################################################################################################
 # 1V1 ARENA CONFIG
 #
@@ -15,7 +17,7 @@ Arena.1v1.Enable = 1
 #        Default:     0 - (Disabled)
 #                     1 - (Enabled)
 
-# Arena.1v1.Announcer = 1
+Arena.1v1.Announcer = 1
 
 #
 #    Arena.1v1.MinLevel
