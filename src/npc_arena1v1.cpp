@@ -48,8 +48,8 @@ public:
 
     void OnLogin(Player* player)  override
     {
-        if (sConfigMgr->GetBoolDefault("CodeboxNPC.Announce", true)) {
-            ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00CodeboxNPC |rmodule.");
+        if (sConfigMgr->GetBoolDefault("Arena.1v1.Announcer", true)) {
+            ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00Arena.1v1 |rmodule.");
         }
     }
 };
