@@ -320,7 +320,6 @@ public:
 
 void AddSC_npc_1v1arena()
 {
-    new arena1v1_worldscript();
     new npc_1v1arena();
     new Arena1v1Announce();
 }
