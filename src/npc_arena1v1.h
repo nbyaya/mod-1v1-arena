@@ -60,7 +60,7 @@ static bool Arena1v1CheckTalents(Player* player)
 
     if (count >= 36)
     {
-        ChatHandler(player->GetSession()).SendSysMessage("Du kannst nicht beitreten, da du zuviele Talentpunkte in einem verbotenen Baum hast. (Heal / Tank)");
+        ChatHandler(player->GetSession()).SendSysMessage("You can not join because you have too many talent points in a forbidden tree. (Heal / Tank)");
         return false;
     }
     else
