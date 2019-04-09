@@ -18,26 +18,6 @@
 #include "npc_arena1v1.h"
 #include "Log.h"
 
-bool Arena1v1AnnounceModule = 1;
-
-class arena1v1_worldscript : public WorldScript
-{
-public:
-    arena1v1_worldscript() : WorldScript("arena1v1_worldscript") { }
-
-    void OnBeforeConfigLoad(bool reload) override
-    {
-        if (!reload) {
-            std::string conf_path = _CONF_DIR;
-            std::string cfg_file = conf_path + "/1v1arena.conf";
-
-            std::string cfg_def_file = cfg_file + ".dist";
-            sConfigMgr->LoadMore(cfg_def_file.c_str());
-            sConfigMgr->LoadMore(cfg_file.c_str());
-            Arena1v1AnnounceModule = sConfigMgr->GetBoolDefault("Arena.1v1.Announcer", 1);
-        }
-    }
-};
 
 class Arena1v1Announce : public PlayerScript
 {
