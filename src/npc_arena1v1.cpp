@@ -253,7 +253,7 @@ public:
             }
             else
             {
-                ChatHandler(player->GetSession()).PSendSysMessage("You have to be level% u + to create a 1v1 arena team.", sConfigMgr->GetIntDefault("CONFIG_ARENA_1V1_MIN_LEVEL", 80));
+                ChatHandler(player->GetSession()).PSendSysMessage("You have to be level %u + to create a 1v1 arena team.", sConfigMgr->GetIntDefault("CONFIG_ARENA_1V1_MIN_LEVEL", 80));
                 player->CLOSE_GOSSIP_MENU();
                 return true;
             }
