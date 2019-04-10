@@ -18,6 +18,21 @@
 #include "npc_arena1v1.h"
 #include "Log.h"
 
+class arena1v1_worldscript : public WorldScript
+{
+public:
+    arena1v1_worldscript() : WorldScript("arena1v1_worldscript") { }
+
+    void OnBeforeConfigLoad(bool reload) override
+    {
+        if (!reload) {
+            std::string conf_path = _CONF_DIR;
+            std::string cfg_file = conf_path + "/1v1arena.conf";
+            std::string cfg_def_file = cfg_file + ".dist";
+            sConfigMgr->LoadMore(cfg_file.c_str());
+        }
+    }
+};
 
 class Arena1v1Announce : public PlayerScript
 {
@@ -320,6 +335,7 @@ public:
 
 void AddSC_npc_1v1arena()
 {
+    new arena1v1_worldscript();
     new npc_1v1arena();
     new Arena1v1Announce();
 }
