@@ -63,7 +63,7 @@ public:
         if (!player || !me)
             return false;
 
-        if (sConfigMgr->GetIntDefault("Arena1v1MinLevel", 70) > player->getLevel())
+        if (sConfigMgr->GetIntDefault("Arena1v1MinLevel", 80) > player->getLevel())
             return false;
 
         uint64 guid = player->GetGUID();
@@ -157,7 +157,7 @@ public:
         // Check if player is already in an arena team
         if (player->GetArenaTeamId(slot))
         {
-            player->GetSession()->SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName(), "", ERR_ALREADY_IN_ARENA_TEAM);
+            player->GetSession()->SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName(), "You are already in an arena team!", ERR_ALREADY_IN_ARENA_TEAM);
             return false;
         }
 
