@@ -137,9 +137,12 @@ public:
         {
             uint8 arenaType = ARENA_TYPE_5v5;
 
-            WorldPacket Data;
-            Data << arenaType << (uint8)0x0 << (uint32)BATTLEGROUND_AA << (uint16)0x0 << (uint8)0x0;
-            player->GetSession()->HandleBattleFieldPortOpcode(Data);
+            if (!player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5))
+                return true;
+
+            WorldPacket data;
+            data << arenaType << (uint8)0x0 << (uint32)BATTLEGROUND_AA << (uint16)0x0 << (uint8)0x0;
+            player->GetSession()->HandleBattleFieldPortOpcode(data);
             CloseGossipMenuFor(player);
             return true;
         }
