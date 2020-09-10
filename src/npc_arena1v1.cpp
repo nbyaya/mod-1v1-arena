@@ -65,22 +65,41 @@ public:
             return true;
         }
 
-        if (player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5))
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue leave 1v1 Arena", GOSSIP_SENDER_MAIN, 3, "Are you sure?", 0, false);
-        else
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena(UnRated)", GOSSIP_SENDER_MAIN, 20);
-
-        if (!player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_5v5)))
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Create new 1v1 Arena Team", GOSSIP_SENDER_MAIN, 1, "Are you sure?", sConfigMgr->GetIntDefault("Arena1v1Costs", 400000), false);
-        else
+        if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 1)
         {
-            if (!player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5))
-            {
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena (Rated)", GOSSIP_SENDER_MAIN, 2);
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Arenateam Clear", GOSSIP_SENDER_MAIN, 5, "Are you sure?", 0, false);
-            }
+            if (player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_1v1))
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue leave 1v1 Arena", GOSSIP_SENDER_MAIN, 3, "Are you sure?", 0, false);
+            else
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena (UnRated)", GOSSIP_SENDER_MAIN, 20);
 
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Shows your statistics", GOSSIP_SENDER_MAIN, 4);
+            if (!player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_1v1)))
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Create new 1v1 Arena Team", GOSSIP_SENDER_MAIN, 1, "Are you sure?", sConfigMgr->GetIntDefault("Arena1v1Costs", 400000), false);
+            else
+            {
+                if (!player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_1v1))
+                {
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena (Rated)", GOSSIP_SENDER_MAIN, 2);
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Arenateam Clear", GOSSIP_SENDER_MAIN, 5, "Are you sure?", 0, false);
+                }
+
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Shows your statistics", GOSSIP_SENDER_MAIN, 4);
+            }
+        } else {
+            if (player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5))
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue leave 1v1 Arena", GOSSIP_SENDER_MAIN, 3, "Are you sure?", 0, false);
+
+            if (!player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_5v5)))
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Create new 1v1 Arena Team", GOSSIP_SENDER_MAIN, 1, "Are you sure?", sConfigMgr->GetIntDefault("Arena1v1Costs", 400000), false);
+            else
+            {
+                if (!player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5))
+                {
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena (Rated)", GOSSIP_SENDER_MAIN, 2);
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Arenateam Clear", GOSSIP_SENDER_MAIN, 5, "Are you sure?", 0, false);
+                }
+
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Shows your statistics", GOSSIP_SENDER_MAIN, 4);
+            }
         }
 
         SendGossipMenuFor(player, 68, creature);
@@ -138,8 +157,16 @@ public:
         {
             uint8 arenaType = ARENA_TYPE_5v5;
 
-            if (!player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5))
-                return true;
+            if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 5)
+            {
+                if (!player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5))
+                    return true;
+            } else {
+                arenaType = ARENA_TYPE_1v1;
+
+                if (!player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_1v1))
+                    return true;
+            }
 
             WorldPacket data;
             data << arenaType << (uint8)0x0 << (uint32)BATTLEGROUND_AA << (uint16)0x0 << (uint8)0x0;
@@ -152,6 +179,12 @@ public:
         case 4: // get statistics
         {
             ArenaTeam* at = sArenaTeamMgr->GetArenaTeamById(player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_5v5)));
+
+            if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 1)
+            {
+                at = sArenaTeamMgr->GetArenaTeamById(player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_1v1)));
+            }
+
             if (at)
             {
                 std::stringstream s;
@@ -170,7 +203,12 @@ public:
         case 5: // Disband arenateam
         {
             WorldPacket Data;
-            Data << (uint32)player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_5v5));
+            if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 1)
+            {
+                Data << (uint32)player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_1v1));
+            } else {
+                Data << (uint32)player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_5v5));
+            }
             player->GetSession()->HandleArenaTeamLeaveOpcode(Data);
             handler.SendSysMessage("Arenateam deleted!");
             CloseGossipMenuFor(player);
@@ -194,6 +232,13 @@ private:
 
         uint8 arenaslot = ArenaTeam::GetSlotByType(ARENA_TEAM_5v5);
         uint8 arenatype = ARENA_TYPE_5v5;
+
+        if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 1)
+        {
+            arenaslot = ArenaTeam::GetSlotByType(ARENA_TEAM_1v1);
+            arenatype = ARENA_TYPE_1v1;
+        }
+
         uint32 arenaRating = 0;
         uint32 matchmakerRating = 0;
 
@@ -205,11 +250,11 @@ private:
         Battleground* bg = sBattlegroundMgr->GetBattlegroundTemplate(BATTLEGROUND_AA);
         if (!bg)
         {
-            sLog->outString("Battleground: template bg (all arenas) not found");
+            sLog->outDebug(LOG_FILTER_NETWORKIO, "Battleground: template bg (all arenas) not found");
             return false;
         }
 
-        if (DisableMgr::IsDisabledFor(DISABLE_TYPE_BATTLEGROUND, BATTLEGROUND_AA, nullptr))
+        if (DisableMgr::IsDisabledFor(DISABLE_TYPE_BATTLEGROUND, BATTLEGROUND_AA, NULL))
         {
             ChatHandler(player->GetSession()).PSendSysMessage(LANG_ARENA_DISABLED);
             return false;
@@ -223,7 +268,7 @@ private:
 
         // check if already in queue
         if (player->GetBattlegroundQueueIndex(bgQueueTypeId) < PLAYER_MAX_BATTLEGROUND_QUEUES)
-            return false; // //player is already in this queue
+            return false; //player is already in this queue
 
         // check if has free queue slots
         if (!player->HasFreeBattlegroundQueueId())
@@ -253,13 +298,20 @@ private:
         BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(bgQueueTypeId);
         bg->SetRated(isRated);
 
-        GroupQueueInfo* ginfo = bgQueue.AddGroup(player, nullptr, bracketEntry, isRated, false, arenaRating, matchmakerRating, ateamId);
+        GroupQueueInfo* ginfo = bgQueue.AddGroup(player, NULL, bracketEntry, isRated, false, arenaRating, matchmakerRating, ateamId);
         uint32 avgTime = bgQueue.GetAverageQueueWaitTime(ginfo);
         uint32 queueSlot = player->AddBattlegroundQueueId(bgQueueTypeId);
 
         // send status packet (in queue)
         WorldPacket data;
-        sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, arenatype, TEAM_NEUTRAL, isRated);
+
+        if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 1)
+        {
+            sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, arenatype, TEAM_NEUTRAL);
+        } else {
+            sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, arenatype, TEAM_NEUTRAL, isRated);
+        }
+
         player->GetSession()->SendPacket(&data);
 
         sBattlegroundMgr->ScheduleArenaQueueUpdate(matchmakerRating, bgQueueTypeId, bracketEntry->GetBracketId());
@@ -272,7 +324,13 @@ private:
         if (!player || !me)
             return false;
 
-        uint8 slot = ArenaTeam::GetSlotByType(ARENA_TEAM_5v5);
+        uint8 slot = ArenaTeam::GetSlotByType(ARENA_TEAM_5v5); 
+
+        if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 1)
+        {
+            slot = ArenaTeam::GetSlotByType(ARENA_TEAM_1v1);
+        }
+
         if (slot >= MAX_ARENA_SLOT)
             return false;
 
@@ -302,10 +360,20 @@ private:
 
         // Create arena team
         ArenaTeam* arenaTeam = new ArenaTeam();
-        if (!arenaTeam->Create(player->GetGUID(), ARENA_TEAM_5v5, teamName.str(), 4283124816, 45, 4294242303, 5, 4294705149))
+
+        if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 1)
         {
-            delete arenaTeam;
-            return false;
+            if (!arenaTeam->Create(player->GetGUID(), ARENA_TEAM_1v1, teamName.str(), 4283124816, 45, 4294242303, 5, 4294705149))
+            {
+                delete arenaTeam;
+                return false;
+            }
+        } else {
+            if (!arenaTeam->Create(player->GetGUID(), ARENA_TEAM_5v5, teamName.str(), 4283124816, 45, 4294242303, 5, 4294705149))
+            {
+                delete arenaTeam;
+                return false;
+            }
         }
 
         // Register arena team

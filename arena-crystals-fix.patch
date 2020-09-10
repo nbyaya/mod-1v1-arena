@@ -1,18 +1,111 @@
-From 72a55618eaeb378573d7f5562f8b428b0f648ceb Mon Sep 17 00:00:00 2001
+From d6ccd22d973259b15c94dfb5d36cf6b04e21132c Mon Sep 17 00:00:00 2001
 From: Rastrian <me@rastrian.dev>
-Date: Thu, 10 Sep 2020 10:21:41 -0300
-Subject: [PATCH] fix(1v1-module): Fixed delay event and Arena Crystals.
+Date: Thu, 10 Sep 2020 13:18:57 -0300
+Subject: [PATCH] Fix patch for 1v1 Arena
 
 ---
- src/server/game/Battlegrounds/Battleground.cpp | 10 +++++++---
- src/server/game/Battlegrounds/Battleground.h   |  1 +
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/server/game/Battlegrounds/ArenaTeam.cpp    | 18 ++++++++++++++++++
+ src/server/game/Battlegrounds/ArenaTeam.h      |  7 +++++++
+ src/server/game/Battlegrounds/Battleground.cpp | 10 ++++++----
+ src/server/game/Battlegrounds/Battleground.h   |  5 +++++
+ .../game/Battlegrounds/BattlegroundMgr.cpp     | 16 ++++++++++++++++
+ .../Entities/Object/Updates/UpdateFields.h     | 15 +++++++++++++++
+ src/server/game/Entities/Player/Player.cpp     | 10 +++++++++-
+ .../game/Handlers/BattleGroundHandler.cpp      | 12 ++++++++++--
+ src/server/game/Miscellaneous/SharedDefines.h  |  3 +++
+ src/server/game/World/World.cpp                |  3 +++
+ src/server/game/World/World.h                  |  4 ++++
+ 11 files changed, 96 insertions(+), 7 deletions(-)
 
+diff --git a/src/server/game/Battlegrounds/ArenaTeam.cpp b/src/server/game/Battlegrounds/ArenaTeam.cpp
+index 5fddb6ae..fd0ce4ef 100644
+--- a/src/server/game/Battlegrounds/ArenaTeam.cpp
++++ b/src/server/game/Battlegrounds/ArenaTeam.cpp
+@@ -81,7 +81,9 @@ bool ArenaTeam::AddMember(uint64 playerGuid)
+ 
+     // Check if arena team is full (Can't have more than type * 2 players)
+     if (GetMembersSize() >= GetType() * 2)
++    {
+         return false;
++    }
+ 
+     // xinef: Get player name and class from player storage or global data storage
+     Player* player = ObjectAccessor::FindPlayerInOrOutOfWorld(playerGuid);
+@@ -434,6 +436,15 @@ void ArenaTeam::Roster(WorldSession* session)
+ 
+ void ArenaTeam::Query(WorldSession* session)
+ {
++    #ifdef mod_1v1arena
++        if (sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 1)
++        {
++            if (GetType() == 1)
++            {
++                return;
++            }
++        }
++    #endif
+     WorldPacket data(SMSG_ARENA_TEAM_QUERY_RESPONSE, 4*7+GetName().size()+1);
+     data << uint32(GetId());                                // team id
+     data << GetName();                                      // team name
+@@ -585,6 +596,9 @@ uint8 ArenaTeam::GetSlotByType(uint32 type)
+         case ARENA_TEAM_2v2: return 0;
+         case ARENA_TEAM_3v3: return 1;
+         case ARENA_TEAM_5v5: return 2;
++#ifdef mod_1v1arena
++        case ARENA_TEAM_1v1: return 3;
++#endif
+         default:
+             break;
+     }
+@@ -623,6 +637,10 @@ uint32 ArenaTeam::GetPoints(uint32 memberRating)
+         points *= 0.76f;
+     else if (Type == ARENA_TEAM_3v3)
+         points *= 0.88f;
++#ifdef mod_1v1arena
++    else if(Type == ARENA_TEAM_1v1)
++        points *= sConfigMgr->GetFloatDefault("Arena.1v1.ArenaPointsMulti", 0.64f);
++#endif
+ 
+     points *= sWorld->getRate(RATE_ARENA_POINTS);
+ 
+diff --git a/src/server/game/Battlegrounds/ArenaTeam.h b/src/server/game/Battlegrounds/ArenaTeam.h
+index bf3dab21..5fa6a2ae 100644
+--- a/src/server/game/Battlegrounds/ArenaTeam.h
++++ b/src/server/game/Battlegrounds/ArenaTeam.h
+@@ -68,6 +68,9 @@ ERR_ARENA_TEAM_LEVEL_TOO_LOW_I
+ 
+ enum ArenaTeamTypes
+ {
++#ifdef mod_1v1arena
++    ARENA_TEAM_1v1      = 1,
++#endif
+     ARENA_TEAM_2v2      = 2,
+     ARENA_TEAM_3v3      = 3,
+     ARENA_TEAM_5v5      = 5
+@@ -101,6 +104,10 @@ struct ArenaTeamStats
+ };
+ 
+ #define MAX_ARENA_SLOT 3                                    // 0..2 slots
++#ifdef mod_1v1arena
++#undef MAX_ARENA_SLOT
++#define MAX_ARENA_SLOT 4                                    // 0..3 slots
++#endif
+ 
+ class ArenaTeam
+ {
 diff --git a/src/server/game/Battlegrounds/Battleground.cpp b/src/server/game/Battlegrounds/Battleground.cpp
-index b9a95b94..30ba7d6f 100644
+index b9a95b94..b173869e 100644
 --- a/src/server/game/Battlegrounds/Battleground.cpp
 +++ b/src/server/game/Battlegrounds/Battleground.cpp
-@@ -1378,17 +1378,21 @@ void Battleground::SpectatorsSendPacket(WorldPacket& data)
+@@ -33,6 +33,7 @@
+ #include "Transport.h"
+ #include "ScriptMgr.h"
+ #include "GameGraveyard.h"
++#include <Config.h>
+ #ifdef ELUNA
+ #include "LuaEngine.h"
+ #endif
+@@ -1378,17 +1378,19 @@ void Battleground::SpectatorsSendPacket(WorldPacket& data)
  
  void Battleground::ReadyMarkerClicked(Player* p)
  {
@@ -22,9 +115,11 @@ index b9a95b94..30ba7d6f 100644
      readyMarkerClickedSet.insert(p->GetGUIDLow());
      uint32 count = readyMarkerClickedSet.size();
      uint32 req = GetArenaType()*2;
-+    if (req == 10) // Arena 1v1
-+        req = 2;
-     p->GetSession()->SendNotification("You are marked as ready %u/%u", count, req);
+-    p->GetSession()->SendNotification("You are marked as ready %u/%u", count, req);
++    if ((sConfigMgr->GetIntDefault("Arena.1v1.Mode", 5) == 5) && (sConfigMgr->GetIntDefault("Arena1v1.Enable", 1) == 1) && (req == 10))
++    {
++        count = 2;
++    }
      if (count == req)
      {
          m_Events |= BG_STARTING_EVENT_2;
@@ -32,11 +127,14 @@ index b9a95b94..30ba7d6f 100644
 -        SetStartDelayTime(BG_START_DELAY_15S);
 +        m_StartTime += GetStartDelayTime()-BG_START_DELAY_5S;
 +        SetStartDelayTime(BG_START_DELAY_5S);
++        p->GetSession()->SendNotification("The arena will start in 5 seconds.");
++    } else {
++        p->GetSession()->SendNotification("You are marked as ready %u/%u", count, req);
      }
  }
  
 diff --git a/src/server/game/Battlegrounds/Battleground.h b/src/server/game/Battlegrounds/Battleground.h
-index 7a2fd35c..9fe8d3ad 100644
+index 7a2fd35c..88c2d6a1 100644
 --- a/src/server/game/Battlegrounds/Battleground.h
 +++ b/src/server/game/Battlegrounds/Battleground.h
 @@ -143,6 +143,7 @@ enum BattlegroundStartTimeIntervals
@@ -47,6 +145,207 @@ index 7a2fd35c..9fe8d3ad 100644
      BG_START_DELAY_NONE             = 0,                    // ms
  };
  
+@@ -210,6 +211,10 @@ enum ScoreType
+ 
+ enum ArenaType
+ {
++#ifdef mod_1v1arena
++    //Add special arena type for 1v1 so we dont need to disable 5v5
++    ARENA_TYPE_1v1          = 1,
++#endif
+     ARENA_TYPE_2v2          = 2,
+     ARENA_TYPE_3v3          = 3,
+     ARENA_TYPE_5v5          = 5
+diff --git a/src/server/game/Battlegrounds/BattlegroundMgr.cpp b/src/server/game/Battlegrounds/BattlegroundMgr.cpp
+index 6dbf016f..f7aa26dc 100644
+--- a/src/server/game/Battlegrounds/BattlegroundMgr.cpp
++++ b/src/server/game/Battlegrounds/BattlegroundMgr.cpp
+@@ -470,6 +470,11 @@ Battleground* BattlegroundMgr::CreateNewBattleground(BattlegroundTypeId original
+         uint32 maxPlayersPerTeam = 0;
+         switch (arenaType)
+         {
++#ifdef mod_1v1arena
++            case ARENA_TYPE_1v1:
++                maxPlayersPerTeam = 1;
++                break;
++#endif
+             case ARENA_TYPE_2v2:
+                 maxPlayersPerTeam = 2;
+                 break;
+@@ -755,6 +760,10 @@ BattlegroundQueueTypeId BattlegroundMgr::BGQueueTypeId(BattlegroundTypeId bgType
+                 return BATTLEGROUND_QUEUE_3v3;
+             case ARENA_TYPE_5v5:
+                 return BATTLEGROUND_QUEUE_5v5;
++#ifdef mod_1v1arena
++            case ARENA_TYPE_1v1:
++                return BATTLEGROUND_QUEUE_1v1;
++#endif
+             default:
+                 return BATTLEGROUND_QUEUE_NONE;
+         }
+@@ -786,6 +795,10 @@ uint8 BattlegroundMgr::BGArenaType(BattlegroundQueueTypeId bgQueueTypeId)
+             return ARENA_TYPE_3v3;
+         case BATTLEGROUND_QUEUE_5v5:
+             return ARENA_TYPE_5v5;
++#ifdef mod_1v1arena
++        case BATTLEGROUND_QUEUE_1v1:
++            return ARENA_TYPE_1v1;
++#endif
+         default:
+             return 0;
+     }
+@@ -1080,6 +1093,9 @@ std::unordered_map<int, BattlegroundTypeId> BattlegroundMgr::queueToBg = {
+     { BATTLEGROUND_QUEUE_2v2,   BATTLEGROUND_AA },
+     { BATTLEGROUND_QUEUE_3v3,   BATTLEGROUND_AA },
+     { BATTLEGROUND_QUEUE_5v5,   BATTLEGROUND_AA },
++#ifdef mod_1v1arena
++    { BATTLEGROUND_QUEUE_1v1,   BATTLEGROUND_AA },
++#endif
+ };
+ 
+ std::unordered_map<int, Battleground*> BattlegroundMgr::bgtypeToBattleground = {
+diff --git a/src/server/game/Entities/Object/Updates/UpdateFields.h b/src/server/game/Entities/Object/Updates/UpdateFields.h
+index 667423bd..93a552a0 100644
+--- a/src/server/game/Entities/Object/Updates/UpdateFields.h
++++ b/src/server/game/Entities/Object/Updates/UpdateFields.h
+@@ -367,6 +367,20 @@ enum EUnitFields
+     PLAYER_FIELD_BYTES2                       = UNIT_END + 0x0439, // Size: 1, Type: 6, Flags: PRIVATE
+     PLAYER_FIELD_WATCHED_FACTION_INDEX        = UNIT_END + 0x043A, // Size: 1, Type: INT, Flags: PRIVATE
+     PLAYER_FIELD_COMBAT_RATING_1              = UNIT_END + 0x043B, // Size: 25, Type: INT, Flags: PRIVATE
++#ifdef mod_1v1arena
++    PLAYER_FIELD_ARENA_TEAM_INFO_1_1 = UNIT_END + 0x0454, // Size: 28, Type: INT, Flags: PRIVATE
++    PLAYER_FIELD_HONOR_CURRENCY = UNIT_END + 0x0470, // Size: 1, Type: INT, Flags: PRIVATE
++    PLAYER_FIELD_ARENA_CURRENCY = UNIT_END + 0x0471, // Size: 1, Type: INT, Flags: PRIVATE
++    PLAYER_FIELD_MAX_LEVEL = UNIT_END + 0x0472, // Size: 1, Type: INT, Flags: PRIVATE
++    PLAYER_FIELD_DAILY_QUESTS_1 = UNIT_END + 0x0473, // Size: 25, Type: INT, Flags: PRIVATE
++    PLAYER_RUNE_REGEN_1 = UNIT_END + 0x048C, // Size: 4, Type: FLOAT, Flags: PRIVATE
++    PLAYER_NO_REAGENT_COST_1 = UNIT_END + 0x0490, // Size: 3, Type: INT, Flags: PRIVATE
++    PLAYER_FIELD_GLYPH_SLOTS_1 = UNIT_END + 0x0493, // Size: 6, Type: INT, Flags: PRIVATE
++    PLAYER_FIELD_GLYPHS_1 = UNIT_END + 0x0499, // Size: 6, Type: INT, Flags: PRIVATE
++    PLAYER_GLYPHS_ENABLED = UNIT_END + 0x049F, // Size: 1, Type: INT, Flags: PRIVATE
++    PLAYER_PET_SPELL_POWER = UNIT_END + 0x04A0, // Size: 1, Type: INT, Flags: PRIVATE
++    PLAYER_END = UNIT_END + 0x04A1,
++#else
+     PLAYER_FIELD_ARENA_TEAM_INFO_1_1          = UNIT_END + 0x0454, // Size: 21, Type: INT, Flags: PRIVATE
+     PLAYER_FIELD_HONOR_CURRENCY               = UNIT_END + 0x0469, // Size: 1, Type: INT, Flags: PRIVATE
+     PLAYER_FIELD_ARENA_CURRENCY               = UNIT_END + 0x046A, // Size: 1, Type: INT, Flags: PRIVATE
+@@ -379,6 +393,7 @@ enum EUnitFields
+     PLAYER_GLYPHS_ENABLED                     = UNIT_END + 0x0498, // Size: 1, Type: INT, Flags: PRIVATE
+     PLAYER_PET_SPELL_POWER                    = UNIT_END + 0x0499, // Size: 1, Type: INT, Flags: PRIVATE
+     PLAYER_END                                = UNIT_END + 0x049A,
++#endif
+ };
+ 
+ enum EGameObjectFields
+diff --git a/src/server/game/Entities/Player/Player.cpp b/src/server/game/Entities/Player/Player.cpp
+index 7395e9e2..f69bd25c 100644
+--- a/src/server/game/Entities/Player/Player.cpp
++++ b/src/server/game/Entities/Player/Player.cpp
+@@ -17602,7 +17602,7 @@ void Player::_LoadArenaTeamInfo()
+ {
+     memset((void*)&m_uint32Values[PLAYER_FIELD_ARENA_TEAM_INFO_1_1], 0, sizeof(uint32) * MAX_ARENA_SLOT * ARENA_TEAM_END);
+ 
+-    for (uint8 slot = 0; slot <= 2; ++slot)
++    for (uint8 slot = 0; slot < MAX_ARENA_SLOT; ++slot)
+         if (uint32 arenaTeamId = Player::GetArenaTeamIdFromStorage(GetGUIDLow(), slot))
+         {
+             ArenaTeam* arenaTeam = sArenaTeamMgr->GetArenaTeamById(arenaTeamId);
+@@ -22224,6 +22224,10 @@ bool Player::BuyItemFromVendorSlot(uint64 vendorguid, uint32 vendorslot, uint32
+     return crItem->maxcount != 0;
+ }
+ 
++#ifdef mod_1v1arena
++#include <Config.h>
++#endif
++
+ uint32 Player::GetMaxPersonalArenaRatingRequirement(uint32 minarenaslot) const
+ {
+     // returns the maximal personal arena rating that can be used to purchase items requiring this condition
+@@ -22232,6 +22236,10 @@ uint32 Player::GetMaxPersonalArenaRatingRequirement(uint32 minarenaslot) const
+     uint32 max_personal_rating = 0;
+     for (uint8 i = minarenaslot; i < MAX_ARENA_SLOT; ++i)
+     {
++#ifdef mod_1v1arena
++        if (i == ArenaTeam::GetSlotByType(ARENA_TYPE_1v1) && sConfigMgr->GetBoolDefault("Arena.1v1.VendorRating", false) == false) continue;
++#endif
++
+         if (ArenaTeam* at = sArenaTeamMgr->GetArenaTeamById(GetArenaTeamId(i)))
+         {
+             uint32 p_rating = GetArenaPersonalRating(i);
+diff --git a/src/server/game/Handlers/BattleGroundHandler.cpp b/src/server/game/Handlers/BattleGroundHandler.cpp
+index 949f88c9..22756e99 100644
+--- a/src/server/game/Handlers/BattleGroundHandler.cpp
++++ b/src/server/game/Handlers/BattleGroundHandler.cpp
+@@ -156,7 +156,11 @@ void WorldSession::HandleBattlemasterJoinOpcode(WorldPacket & recvData)
+             err = ERR_IN_NON_RANDOM_BG;
+         else if (_player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_2v2) ||
+                  _player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_3v3) ||
+-                 _player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5)) // can't be already queued for arenas
++                 _player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5)
++#ifdef mod_1v1arena
++            || _player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_1v1)
++#endif
++            ) // can't be already queued for arenas
+             err = ERR_BATTLEGROUND_QUEUED_FOR_RATED;
+         // don't let Death Knights join BG queues when they are not allowed to be teleported yet
+         else if (_player->getClass() == CLASS_DEATH_KNIGHT && _player->GetMapId() == 609 && !_player->IsGameMaster() && !_player->HasSpell(50977))
+@@ -222,7 +226,11 @@ void WorldSession::HandleBattlemasterJoinOpcode(WorldPacket & recvData)
+             err = ERR_IN_NON_RANDOM_BG;
+         else if (_player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_2v2) ||
+                  _player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_3v3) ||
+-                 _player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5)) // can't be already queued for arenas
++                 _player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_5v5)
++#ifdef mod_1v1arena
++                || _player->InBattlegroundQueueForBattlegroundQueueType(BATTLEGROUND_QUEUE_1v1)
++#endif
++                ) // can't be already queued for arenas
+             err = ERR_BATTLEGROUND_QUEUED_FOR_RATED;
+ 
+         if (err > 0)
+diff --git a/src/server/game/Miscellaneous/SharedDefines.h b/src/server/game/Miscellaneous/SharedDefines.h
+index 123e4844..96c9ee94 100644
+--- a/src/server/game/Miscellaneous/SharedDefines.h
++++ b/src/server/game/Miscellaneous/SharedDefines.h
+@@ -3431,6 +3431,9 @@ enum BattlegroundQueueTypeId
+     BATTLEGROUND_QUEUE_2v2       = 8,
+     BATTLEGROUND_QUEUE_3v3       = 9,
+     BATTLEGROUND_QUEUE_5v5       = 10,
++#ifdef mod_1v1arena
++    BATTLEGROUND_QUEUE_1v1       = 11,
++#endif
+     MAX_BATTLEGROUND_QUEUE_TYPES = 20,
+ };
+ 
+diff --git a/src/server/game/World/World.cpp b/src/server/game/World/World.cpp
+index 1ed8956f..f159321a 100644
+--- a/src/server/game/World/World.cpp
++++ b/src/server/game/World/World.cpp
+@@ -3232,6 +3232,9 @@ void World::AddGlobalPlayerData(uint32 guid, uint32 accountId, std::string const
+     data.arenaTeamId[0] = 0;
+     data.arenaTeamId[1] = 0;
+     data.arenaTeamId[2] = 0;
++#ifdef mod_1v1arena
++    data.arenaTeamId[3] = 0;
++#endif
+ 
+     _globalPlayerDataStore[guid] = data;
+     _globalPlayerNameStore[name] = guid;
+diff --git a/src/server/game/World/World.h b/src/server/game/World/World.h
+index e8a09cd5..ae7b9d1a 100644
+--- a/src/server/game/World/World.h
++++ b/src/server/game/World/World.h
+@@ -581,7 +581,11 @@ struct GlobalPlayerData
+     uint16 mailCount;
+     uint32 guildId;
+     uint32 groupId;
++#ifdef mod_1v1arena
++    uint32 arenaTeamId[4];
++#else
+     uint32 arenaTeamId[3];
++#endif
+ };
+ 
+ enum GlobalPlayerUpdateMask
 -- 
 2.27.0.windows.1
 

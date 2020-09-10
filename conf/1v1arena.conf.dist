@@ -10,14 +10,23 @@
 
 Arena1v1.Enable = 1
 
-#    NOT IMPLEMENTED
 #    Arena.1v1.Announcer
 #        Description: Announce 1v1 arena queue status to chat.
-#                      Arena.QueueAnnouncer.Enable must be enabled.
+#                     Arena.QueueAnnouncer.Enable must be enabled.
 #        Default:     0 - (Disabled)
 #                     1 - (Enabled)
 
 Arena1v1Announcer.Enable = 1
+
+#
+#    Arena.1v1.Mode
+#        Description: Change the mode of the arena use method (1v1 or 5v5).
+#                     This method needs a patch to work, avaliable on github repository.
+#                     The unrated arena will only work with 1v1 Arena (value 1).
+#        Default:     5 (Uses 5v5 Arena)
+#                     1 (Uses 1v1 Arena - Needs apply a patch)
+
+Arena.1v1.Mode = 5
 
 #
 #    Arena.1v1.MinLevel
@@ -38,7 +47,7 @@ Arena1v1Costs = 400000
 #        Description: If true, 1v1 rating will use to calculate highest personal-rating (extended costs).
 #                      Note: The vendor-item will show as not buyable (red), but players can buy it, if enabled and rating is high enough.
 #        Default:     0 - (false)
-#                      1 - (true)
+#                     1 - (true)
 
 Arena.1v1.VendorRating = 0
 
@@ -53,6 +62,7 @@ Arena.1v1.VendorRating = 0
 
 Arena.1v1.ArenaPointsMulti = 0.64
 
+#    NOT IMPLEMENTED
 #
 #    Arena.1v1.BlockForbiddenTalents
 #        Description: If true, healers can't join 1v1 arena, if they invested more than 35 talentpoints in a healing-talenttree.
