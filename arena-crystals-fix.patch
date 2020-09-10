@@ -1,0 +1,52 @@
+From 72a55618eaeb378573d7f5562f8b428b0f648ceb Mon Sep 17 00:00:00 2001
+From: Rastrian <me@rastrian.dev>
+Date: Thu, 10 Sep 2020 10:21:41 -0300
+Subject: [PATCH] fix(1v1-module): Fixed delay event and Arena Crystals.
+
+---
+ src/server/game/Battlegrounds/Battleground.cpp | 10 +++++++---
+ src/server/game/Battlegrounds/Battleground.h   |  1 +
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/server/game/Battlegrounds/Battleground.cpp b/src/server/game/Battlegrounds/Battleground.cpp
+index b9a95b94..30ba7d6f 100644
+--- a/src/server/game/Battlegrounds/Battleground.cpp
++++ b/src/server/game/Battlegrounds/Battleground.cpp
+@@ -1378,17 +1378,21 @@ void Battleground::SpectatorsSendPacket(WorldPacket& data)
+ 
+ void Battleground::ReadyMarkerClicked(Player* p)
+ {
+-    if (!isArena() || GetStatus() >= STATUS_IN_PROGRESS || GetStartDelayTime() <= BG_START_DELAY_15S || (m_Events & BG_STARTING_EVENT_3) || p->IsSpectator())
++    if (!isArena() || GetStatus() >= STATUS_IN_PROGRESS || GetStartDelayTime() <= BG_START_DELAY_5S || (m_Events & BG_STARTING_EVENT_3) || p->IsSpectator())
+         return;
+     readyMarkerClickedSet.insert(p->GetGUIDLow());
+     uint32 count = readyMarkerClickedSet.size();
+     uint32 req = GetArenaType()*2;
++    if (req == 10) // Arena 1v1
++        req = 2;
+     p->GetSession()->SendNotification("You are marked as ready %u/%u", count, req);
+     if (count == req)
+     {
+         m_Events |= BG_STARTING_EVENT_2;
+-        m_StartTime += GetStartDelayTime()-BG_START_DELAY_15S;
+-        SetStartDelayTime(BG_START_DELAY_15S);
++        m_StartTime += GetStartDelayTime()-BG_START_DELAY_5S;
++        SetStartDelayTime(BG_START_DELAY_5S);
+     }
+ }
+ 
+diff --git a/src/server/game/Battlegrounds/Battleground.h b/src/server/game/Battlegrounds/Battleground.h
+index 7a2fd35c..9fe8d3ad 100644
+--- a/src/server/game/Battlegrounds/Battleground.h
++++ b/src/server/game/Battlegrounds/Battleground.h
+@@ -143,6 +143,7 @@ enum BattlegroundStartTimeIntervals
+     BG_START_DELAY_1M               = 60000,                // ms (1 minute)
+     BG_START_DELAY_30S              = 30000,                // ms (30 seconds)
+     BG_START_DELAY_15S              = 15000,                // ms (15 seconds) Used only in arena
++    BG_START_DELAY_5S               = 5000,                 // ms (5 seconds) Used only in arena
+     BG_START_DELAY_NONE             = 0,                    // ms
+ };
+ 
+-- 
+2.27.0.windows.1
+

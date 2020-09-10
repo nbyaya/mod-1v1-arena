@@ -15,9 +15,10 @@
 
 ### How to install
 1. Simply place the module under the `modules` folder of your AzerothCore source folder.
-2. Re-run cmake and launch a clean build of AzerothCore
-3. Run the Sql file into your database.
-4. Ready.
+2. (Optional) You can apply the ``arena-crystals-fix.patch`` to your core using ``git apply arena-crystals-fix.patch``, this patch also apply a fast start to arena crystals, until the original piece of code applys a delay of 15s, we changed to 5s for make arenas startup faster. :) (This patch its also avaliable on [Pastebin](https://pastebin.com/raw/Jw8XexQy)).
+3. Re-run cmake and launch a clean build of AzerothCore
+4. Run the Sql file into your database.
+5. Ready.
 
 ### Usage
 - Enable the module and join 1 v 1 with 2 characters at the BattleMaster Npc.

@@ -15,6 +15,7 @@
 CMakeLists.txt.user
 *.bak
 *.patch
+!arena-crystals-fix.patch
 *.diff
 *.REMOTE.*
 *.BACKUP.*
