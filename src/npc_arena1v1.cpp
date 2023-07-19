@@ -63,7 +63,6 @@ class configloader_1v1arena : public WorldScript
 public:
     configloader_1v1arena() : WorldScript("configloader_1v1arena") {}
 
-
     virtual void OnAfterConfigLoad(bool /*Reload*/) override
     {
         std::stringstream ss(sConfigMgr->GetOption<std::string>("Arena1v1.ForbiddenTalentsIDs", "0"));
@@ -74,10 +73,10 @@ public:
         }
 
         ARENA_SLOT_1V1 = sConfigMgr->GetOption<uint32>("Arena1v1.ArenaSlotID", 3);
-        
+
         ArenaTeam::ArenaSlotByType.emplace(ARENA_TEAM_1V1, ARENA_SLOT_1V1);
         ArenaTeam::ArenaReqPlayersForType.emplace(ARENA_TYPE_1V1, 2);
-        
+
         BattlegroundMgr::queueToBg.insert({ BATTLEGROUND_QUEUE_1V1,   BATTLEGROUND_AA });
         BattlegroundMgr::QueueToArenaType.emplace(BATTLEGROUND_QUEUE_1V1, (ArenaType) ARENA_TYPE_1V1);
         BattlegroundMgr::ArenaTypeToQueue.emplace(ARENA_TYPE_1V1, (BattlegroundQueueTypeId) BATTLEGROUND_QUEUE_1V1);
@@ -257,9 +256,8 @@ public:
 
             case 5: // Disband arenateam
             {
-                deleteTeamArenaForPlayer(player);
                 WorldPacket Data;
-                Data << player->GetArenaTeamId(ArenaTeam::GetSlotByType(ARENA_TEAM_1V1));
+                Data << playerArenaTeam(player);
                 player->GetSession()->HandleArenaTeamLeaveOpcode(Data);
                 handler.SendSysMessage("Arenateam deleted!");
                 CloseGossipMenuFor(player);
