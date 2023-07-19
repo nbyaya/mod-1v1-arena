@@ -279,7 +279,6 @@ private:
         if (sConfigMgr->GetOption<uint32>("Arena1v1.MinLevel", 80) > player->getLevel())
             return false;
 
-        uint8 arenaslot = ArenaTeam::GetSlotByType(ARENA_TEAM_1V1);
         uint8 arenatype = ARENA_TYPE_1V1;
         uint32 arenaRating = 0;
         uint32 matchmakerRating = 0;
