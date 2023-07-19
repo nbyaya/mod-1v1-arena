@@ -326,12 +326,9 @@ private:
             }
 
             // get the team rating for queueing
-            arenaRating = at->GetRating();
+            arenaRating = std::max(0u, at->GetRating());
             matchmakerRating = arenaRating;
             // the arenateam id must match for everyone in the group
-
-            if (arenaRating <= 0)
-                arenaRating = 1;
         }
 
         BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(bgQueueTypeId);
@@ -364,6 +361,12 @@ private:
         if (slot == 0)
             return false;
 
+        // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
+        uint32 playerHonorPoints = player->GetHonorPoints();
+        uint32 playerArenaPoints = player->GetArenaPoints();
+        player->SetHonorPoints(0);
+        player->SetArenaPoints(0);
+
         // Check if player is already in an arena team
         if (player->GetArenaTeamId(slot))
         {
@@ -371,25 +374,13 @@ private:
             return false;
         }
 
-        // Teamname = playername
-        // if teamname exist, we have to choose another name (playername + number)
-        int i = 1;
-        std::stringstream teamName;
-        teamName << player->GetName();
-        do
-        {
-            if (sArenaTeamMgr->GetArenaTeamByName(teamName.str()) != NULL) // teamname exist, so choose another name
-            {
-                teamName.str(std::string());
-                teamName << player->GetName() << (i++);
-            }
-            else
-                break;
-        } while (i < 100); // should never happen
+        // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
+        sArenaTeamMgr->RemoveArenaTeam(playerArenaTeam(player));
+        deleteTeamArenaForPlayer(player);
 
         // Create arena team
         ArenaTeam* arenaTeam = new ArenaTeam();
-        if (!arenaTeam->Create(player->GetGUID(), ARENA_TEAM_1V1, teamName.str(), 4283124816, 45, 4294242303, 5, 4294705149))
+        if (!arenaTeam->Create(player->GetGUID(), ARENA_TEAM_1V1, player->GetName(), 4283124816, 45, 4294242303, 5, 4294705149))
         {
             delete arenaTeam;
             return false;
@@ -399,6 +390,10 @@ private:
         sArenaTeamMgr->AddArenaTeam(arenaTeam);
 
         ChatHandler(player->GetSession()).SendSysMessage("1v1 Arenateam successfully created!");
+
+        // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
+        player->SetHonorPoints(playerHonorPoints);
+        player->SetArenaPoints(playerArenaPoints);
 
         return true;
     }
