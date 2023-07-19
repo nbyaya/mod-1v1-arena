@@ -3,5 +3,4 @@ INSERT INTO `creature_template` (`entry`, `difficulty_entry_1`, `difficulty_entr
 (999991, 0, 0, 0, 0, 0, 23766, 0, 0, 0, 'Arena Battlemaster 1v1', '', '', 8218, 70, 70, 2, 35, 1048577, 1.1, 1.14286, 3, 0, 0, 1, 2000, 2000, 1, 768, 2048, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 'npc_1v1arena', 12340);
 
 DELETE FROM `battlemaster_entry` WHERE `entry`=999991;
-
 INSERT INTO `battlemaster_entry` (`entry`, `bg_template`) VALUES (999991, 6);

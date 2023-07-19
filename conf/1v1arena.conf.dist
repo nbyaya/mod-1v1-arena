@@ -64,16 +64,22 @@ Arena1v1.BlockForbiddenTalents = 1
 #
 #    Arena1v1.ForbiddenTalentsIDs
 #        Description: List to block specific talents id in arena. See TalentTab.dbc for available talents (you will need an DBC-Editor). The list is coma(,) separated and should have no spaces
-#        Default:     "0" - (no talent blocked)
-#		 Example:     "201,202,382,362,282,383,163"
+#           Default:     "0" - (no talent blocked)
+#           Example:     "201,202,382,362,282,383,163"
 
 Arena1v1.ForbiddenTalentsIDs = "0"
 
 
 #
 #    Arena1v1.ArenaSlotID
-#        Description: The slot the 1v1 will be working over. Needs to be bigger or equals then 3 otherwise it will overwrite the 2v2,3v3 or 5v5 data
-#        Default:     3
+#       Description: The slot the 1v1 will be working over. Needs to be bigger or equals then 3 otherwise it will overwrite the 2v2, 3v3 or 5v5 data
+#       Default:     3
+#       Value:
+#           2v2 = 0
+#           3v3 = 1
+#           5v5 = 2
+#           1v1 = 3
+#
 
 Arena1v1.ArenaSlotID = 3
 
