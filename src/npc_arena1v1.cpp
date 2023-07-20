@@ -403,32 +403,21 @@ private:
 
         if (sConfigMgr->GetOption<bool>("Arena1v1.BlockForbiddenTalents", true) == false)
             return true;
+		
+		bool healspec = player->HasHealSpec();
+        bool tankspec = player->HasTankSpec();
 
-        uint32 count = 0;
-
-        for (uint32 talentId = 0; talentId < sTalentStore.GetNumRows(); ++talentId)
-        {
-            TalentEntry const* talentInfo = sTalentStore.LookupEntry(talentId);
-
-            if (!talentInfo)
-                continue;
-
-            if (std::find(forbiddenTalents.begin(), forbiddenTalents.end(), talentInfo->TalentID) != forbiddenTalents.end())
-            {
-                ChatHandler(player->GetSession()).SendSysMessage("You can not join because you have forbidden talents.");
-                return false;
-            }
-
-            for (int8 rank = MAX_TALENT_RANK - 1; rank >= 0; --rank)
-                if (talentInfo->RankID[rank] == 0)
-                    continue;
-        }
-
-        if (count >= 36)
-        {
-            ChatHandler(player->GetSession()).SendSysMessage("You can not join because you have too many talent points in a forbidden tree. (Heal / Tank)");
+        if (healspec == true)
+		{
+			ChatHandler(player->GetSession()).SendSysMessage("You can't join because you have forbidden talents (Heal)");
             return false;
-        }
+		}
+		
+		if (tankspec == true)
+		{
+			ChatHandler(player->GetSession()).SendSysMessage("You can't join because you have forbidden talents (Tank)");
+            return false;
+		}
 
         return true;
     }
