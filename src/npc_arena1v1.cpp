@@ -21,6 +21,7 @@
 #include "ScriptedGossip.h"
 #include "SharedDefines.h"
 #include "Chat.h"
+#include "npc_1v1arena.h"
 
 //Const for 1v1 arena
 constexpr uint32 ARENA_TEAM_1V1 = 1;
@@ -118,293 +119,288 @@ public:
     }
 };
 
-class npc_1v1arena : public CreatureScript
+
+bool npc_1v1arena::OnGossipHello(Player* player, Creature* creature)
 {
-public:
-    npc_1v1arena() : CreatureScript("npc_1v1arena") { }
+    if (!player || !creature)
+        return true;
 
-    bool OnGossipHello(Player* player, Creature* creature) override
+    if (sConfigMgr->GetOption<bool>("Arena1v1.Enable", true) == false)
     {
-        if (!player || !creature)
+        ChatHandler(player->GetSession()).SendSysMessage("1v1 disabled!");
+        return true;
+    }
+
+    if (player->InBattlegroundQueueForBattlegroundQueueType(bgQueueTypeId))
+    {
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue leave 1v1 Arena", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_LEAVE_QUEUE, "Are you sure?", 0, false);
+    }
+    else
+    {
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena (UnRated)", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_JOIN_QUEUE_ARENA_UNRATED);
+    }
+
+    if (!teamExistForPlayerGuid(player))
+    {
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Create new 1v1 Arena Team", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_CREATE_ARENA_TEAM, "Are you sure?", sConfigMgr->GetOption<uint32>("Arena1v1.Costs", 400000), false);
+    }
+    else
+    {
+        if (!player->InBattlegroundQueueForBattlegroundQueueType(bgQueueTypeId))
+        {
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena (Rated)", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_JOIN_QUEUE_ARENA_RATED);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Arenateam Clear", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_DISBAND_ARENA_TEAM, "Are you sure?", 0, false);
+        }
+
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Shows your statistics", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_GET_STATISTICS);
+    }
+
+    SendGossipMenuFor(player, 68, creature);
+    return true;
+}
+
+bool npc_1v1arena::OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action)
+{
+    if (!player || !creature)
+        return true;
+
+    ClearGossipMenuFor(player);
+
+    ChatHandler handler(player->GetSession());
+
+    switch (action)
+    {
+        case NPC_ARENA_1V1_ACTION_CREATE_ARENA_TEAM:
+        {
+            if (sConfigMgr->GetOption<uint32>("Arena1v1.MinLevel", 80) <= player->GetLevel())
+            {
+                if (player->GetMoney() >= uint32(sConfigMgr->GetOption<uint32>("Arena1v1.Costs", 400000)) && CreateArenateam(player, creature))
+                    player->ModifyMoney(sConfigMgr->GetOption<uint32>("Arena1v1.Costs", 400000) * -1);
+            }
+            else
+            {
+                handler.PSendSysMessage("You have to be level {} + to create a 1v1 arena team.", sConfigMgr->GetOption<uint32>("Arena1v1.MinLevel", 70));
+                return true;
+            }
+            CloseGossipMenuFor(player);
+        }
+        break;
+
+        case NPC_ARENA_1V1_ACTION_JOIN_QUEUE_ARENA_RATED:
+        {
+            if (Arena1v1CheckTalents(player) && !JoinQueueArena(player, creature, true))
+                handler.SendSysMessage("Something went wrong when joining the queue.");
+
+            CloseGossipMenuFor(player);
             return true;
+        }
+        break;
 
-        if (sConfigMgr->GetOption<bool>("Arena1v1.Enable", true) == false)
+        case NPC_ARENA_1V1_ACTION_JOIN_QUEUE_ARENA_UNRATED:
         {
-            ChatHandler(player->GetSession()).SendSysMessage("1v1 disabled!");
+            if (Arena1v1CheckTalents(player) && !JoinQueueArena(player, creature, false))
+                handler.SendSysMessage("Something went wrong when joining the queue.");
+
+            CloseGossipMenuFor(player);
             return true;
         }
+        break;
 
-        if (player->InBattlegroundQueueForBattlegroundQueueType(bgQueueTypeId))
+        case NPC_ARENA_1V1_ACTION_LEAVE_QUEUE:
         {
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue leave 1v1 Arena", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_LEAVE_QUEUE, "Are you sure?", 0, false);
-        }
-        else
-        {
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena (UnRated)", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_JOIN_QUEUE_ARENA_UNRATED);
-        }
+            uint8 arenaType = ARENA_TYPE_1V1;
 
-        if (!teamExistForPlayerGuid(player))
-        {
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Create new 1v1 Arena Team", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_CREATE_ARENA_TEAM, "Are you sure?", sConfigMgr->GetOption<uint32>("Arena1v1.Costs", 400000), false);
-        }
-        else
-        {
             if (!player->InBattlegroundQueueForBattlegroundQueueType(bgQueueTypeId))
-            {
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Queue enter 1v1 Arena (Rated)", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_JOIN_QUEUE_ARENA_RATED);
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Arenateam Clear", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_DISBAND_ARENA_TEAM, "Are you sure?", 0, false);
-            }
+                return true;
 
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Shows your statistics", GOSSIP_SENDER_MAIN, NPC_ARENA_1V1_ACTION_GET_STATISTICS);
-        }
-
-        SendGossipMenuFor(player, 68, creature);
-        return true;
-    }
-
-    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
-    {
-        if (!player || !creature)
+            WorldPacket data;
+            data << arenaType << (uint8)0x0 << (uint32)BATTLEGROUND_AA << (uint16)0x0 << (uint8)0x0;
+            player->GetSession()->HandleBattleFieldPortOpcode(data);
+            CloseGossipMenuFor(player);
             return true;
-
-        ClearGossipMenuFor(player);
-
-        ChatHandler handler(player->GetSession());
-
-        switch (action)
-        {
-            case NPC_ARENA_1V1_ACTION_CREATE_ARENA_TEAM:
-            {
-                if (sConfigMgr->GetOption<uint32>("Arena1v1.MinLevel", 80) <= player->GetLevel())
-                {
-                    if (player->GetMoney() >= uint32(sConfigMgr->GetOption<uint32>("Arena1v1.Costs", 400000)) && CreateArenateam(player, creature))
-                        player->ModifyMoney(sConfigMgr->GetOption<uint32>("Arena1v1.Costs", 400000) * -1);
-                }
-                else
-                {
-                    handler.PSendSysMessage("You have to be level %u + to create a 1v1 arena team.", sConfigMgr->GetOption<uint32>("Arena1v1.MinLevel", 70));
-                    return true;
-                }
-                CloseGossipMenuFor(player);
-            }
-            break;
-
-            case NPC_ARENA_1V1_ACTION_JOIN_QUEUE_ARENA_RATED:
-            {
-                if (Arena1v1CheckTalents(player) && !JoinQueueArena(player, creature, true))
-                    handler.SendSysMessage("Something went wrong when joining the queue.");
-
-                CloseGossipMenuFor(player);
-                return true;
-            }
-            break;
-
-            case NPC_ARENA_1V1_ACTION_JOIN_QUEUE_ARENA_UNRATED:
-            {
-                if (Arena1v1CheckTalents(player) && !JoinQueueArena(player, creature, false))
-                    handler.SendSysMessage("Something went wrong when joining the queue.");
-
-                CloseGossipMenuFor(player);
-                return true;
-            }
-            break;
-
-            case NPC_ARENA_1V1_ACTION_LEAVE_QUEUE:
-            {
-                uint8 arenaType = ARENA_TYPE_1V1;
-
-                if (!player->InBattlegroundQueueForBattlegroundQueueType(bgQueueTypeId))
-                    return true;
-
-                WorldPacket data;
-                data << arenaType << (uint8)0x0 << (uint32)BATTLEGROUND_AA << (uint16)0x0 << (uint8)0x0;
-                player->GetSession()->HandleBattleFieldPortOpcode(data);
-                CloseGossipMenuFor(player);
-                return true;
-            }
-            break;
-
-            case NPC_ARENA_1V1_ACTION_GET_STATISTICS:
-            {
-                ArenaTeam* at = sArenaTeamMgr->GetArenaTeamById(player->GetArenaTeamId(ARENA_SLOT_1V1));
-                if (at)
-                {
-                    std::stringstream s;
-                    s << "\nRating: " << at->GetStats().Rating;
-                    s << "\nRank: " << at->GetStats().Rank;
-                    s << "\nSeason Games: " << at->GetStats().SeasonGames;
-                    s << "\nSeason Wins: " << at->GetStats().SeasonWins;
-                    s << "\nWeek Games: " << at->GetStats().WeekGames;
-                    s << "\nWeek Wins: " << at->GetStats().WeekWins;
-
-                    ChatHandler(player->GetSession()).PSendSysMessage(SERVER_MSG_STRING, s.str().c_str());
-                }
-                CloseGossipMenuFor(player);
-            }
-            break;
-
-            case NPC_ARENA_1V1_ACTION_DISBAND_ARENA_TEAM:
-            {
-                WorldPacket Data;
-                Data << player->GetArenaTeamId(ARENA_SLOT_1V1);
-                player->GetSession()->HandleArenaTeamLeaveOpcode(Data);
-                handler.SendSysMessage("Arenateam deleted!");
-                CloseGossipMenuFor(player);
-                return true;
-            }
-            break;
         }
-        return true;
-    }
+        break;
 
-private:
-    bool JoinQueueArena(Player* player, Creature* me, bool isRated)
+        case NPC_ARENA_1V1_ACTION_GET_STATISTICS:
+        {
+            ArenaTeam* at = sArenaTeamMgr->GetArenaTeamById(player->GetArenaTeamId(ARENA_SLOT_1V1));
+            if (at)
+            {
+                std::stringstream s;
+                s << "\nRating: " << at->GetStats().Rating;
+                s << "\nRank: " << at->GetStats().Rank;
+                s << "\nSeason Games: " << at->GetStats().SeasonGames;
+                s << "\nSeason Wins: " << at->GetStats().SeasonWins;
+                s << "\nWeek Games: " << at->GetStats().WeekGames;
+                s << "\nWeek Wins: " << at->GetStats().WeekWins;
+
+                ChatHandler(player->GetSession()).PSendSysMessage(SERVER_MSG_STRING, s.str().c_str());
+            }
+            CloseGossipMenuFor(player);
+        }
+        break;
+
+        case NPC_ARENA_1V1_ACTION_DISBAND_ARENA_TEAM:
+        {
+            WorldPacket Data;
+            Data << player->GetArenaTeamId(ARENA_SLOT_1V1);
+            player->GetSession()->HandleArenaTeamLeaveOpcode(Data);
+            handler.SendSysMessage("Arenateam deleted!");
+            CloseGossipMenuFor(player);
+            return true;
+        }
+        break;
+    }
+    return true;
+}
+
+bool npc_1v1arena::JoinQueueArena(Player* player, Creature* /* me */, bool isRated)
+{
+    if (!player)
+        return false;
+
+    if (sConfigMgr->GetOption<uint32>("Arena1v1.MinLevel", 80) > player->GetLevel())
+        return false;
+
+    uint8 arenatype = ARENA_TYPE_1V1;
+    uint32 arenaRating = 0;
+    uint32 matchmakerRating = 0;
+
+    // ignore if we already in BG or BG queue
+    if (player->InBattleground())
+        return false;
+
+    //check existance
+    Battleground* bg = sBattlegroundMgr->GetBattlegroundTemplate(BATTLEGROUND_AA);
+    if (!bg)
     {
-        if (!player || !me)
-            return false;
-
-        if (sConfigMgr->GetOption<uint32>("Arena1v1.MinLevel", 80) > player->GetLevel())
-            return false;
-
-        uint8 arenatype = ARENA_TYPE_1V1;
-        uint32 arenaRating = 0;
-        uint32 matchmakerRating = 0;
-
-        // ignore if we already in BG or BG queue
-        if (player->InBattleground())
-            return false;
-
-        //check existance
-        Battleground* bg = sBattlegroundMgr->GetBattlegroundTemplate(BATTLEGROUND_AA);
-        if (!bg)
-        {
-            LOG_ERROR("module", "Battleground: template bg (all arenas) not found");
-            return false;
-        }
-
-        if (DisableMgr::IsDisabledFor(DISABLE_TYPE_BATTLEGROUND, BATTLEGROUND_AA, nullptr))
-        {
-            ChatHandler(player->GetSession()).PSendSysMessage(LANG_ARENA_DISABLED);
-            return false;
-        }
-
-        PvPDifficultyEntry const* bracketEntry = GetBattlegroundBracketByLevel(bg->GetMapId(), player->GetLevel());
-        if (!bracketEntry)
-            return false;
-
-        // check if already in queue
-        if (player->GetBattlegroundQueueIndex(bgQueueTypeId) < PLAYER_MAX_BATTLEGROUND_QUEUES)
-            return false; // //player is already in this queue
-
-        // check if has free queue slots
-        if (!player->HasFreeBattlegroundQueueId())
-            return false;
-
-        uint32 ateamId = 0;
-
-        if (isRated)
-        {
-            ateamId = player->GetArenaTeamId(ARENA_SLOT_1V1);
-            ArenaTeam* at = sArenaTeamMgr->GetArenaTeamById(ateamId);
-            if (!at)
-            {
-                player->GetSession()->SendNotInArenaTeamPacket(arenatype);
-                return false;
-            }
-
-            // get the team rating for queueing
-            arenaRating = std::max(0u, at->GetRating());
-            matchmakerRating = arenaRating;
-            // the arenateam id must match for everyone in the group
-        }
-
-        BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(bgQueueTypeId);
-        BattlegroundTypeId bgTypeId = BATTLEGROUND_AA;
-
-        bg->SetRated(isRated);
-        bg->SetMaxPlayersPerTeam(1);
-
-        GroupQueueInfo* ginfo = bgQueue.AddGroup(player, nullptr, bgTypeId, bracketEntry, arenatype, isRated != 0, false, arenaRating, matchmakerRating, ateamId, 0);
-        uint32 avgTime = bgQueue.GetAverageQueueWaitTime(ginfo);
-        uint32 queueSlot = player->AddBattlegroundQueueId(bgQueueTypeId);
-
-        // send status packet (in queue)
-        WorldPacket data;
-        sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, arenatype, TEAM_NEUTRAL, isRated);
-        player->GetSession()->SendPacket(&data);
-
-        sBattlegroundMgr->ScheduleQueueUpdate(matchmakerRating, arenatype, bgQueueTypeId, bgTypeId, bracketEntry->GetBracketId());
-
-        return true;
+        LOG_ERROR("module", "Battleground: template bg (all arenas) not found");
+        return false;
     }
 
-    bool CreateArenateam(Player* player, Creature* me)
+    if (DisableMgr::IsDisabledFor(DISABLE_TYPE_BATTLEGROUND, BATTLEGROUND_AA, nullptr))
     {
-        if (!player || !me)
-            return false;
-
-        uint8 slot = ArenaTeam::GetSlotByType(ARENA_TEAM_1V1);
-        //Just to make sure as some other module might edit this value
-        if (slot == 0)
-            return false;
-
-        // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
-        uint32 playerHonorPoints = player->GetHonorPoints();
-        uint32 playerArenaPoints = player->GetArenaPoints();
-        player->SetHonorPoints(0);
-        player->SetArenaPoints(0);
-
-        // Check if player is already in an arena team
-        if (player->GetArenaTeamId(slot))
-        {
-            player->GetSession()->SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName(), "You are already in an arena team!", ERR_ALREADY_IN_ARENA_TEAM);
-            return false;
-        }
-
-        // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
-        sArenaTeamMgr->RemoveArenaTeam(player->GetArenaTeamId(ARENA_SLOT_1V1));
-        deleteTeamArenaForPlayer(player);
-
-        // Create arena team
-        ArenaTeam* arenaTeam = new ArenaTeam();
-        if (!arenaTeam->Create(player->GetGUID(), ARENA_TEAM_1V1, player->GetName(), 4283124816, 45, 4294242303, 5, 4294705149))
-        {
-            delete arenaTeam;
-            return false;
-        }
-
-        // Register arena team
-        sArenaTeamMgr->AddArenaTeam(arenaTeam);
-
-        ChatHandler(player->GetSession()).SendSysMessage("1v1 Arenateam successfully created!");
-
-        // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
-        player->SetHonorPoints(playerHonorPoints);
-        player->SetArenaPoints(playerArenaPoints);
-
-        return true;
+        ChatHandler(player->GetSession()).PSendSysMessage(LANG_ARENA_DISABLED);
+        return false;
     }
 
-    bool Arena1v1CheckTalents(Player* player)
+    PvPDifficultyEntry const* bracketEntry = GetBattlegroundBracketByLevel(bg->GetMapId(), player->GetLevel());
+    if (!bracketEntry)
+        return false;
+
+    // check if already in queue
+    if (player->GetBattlegroundQueueIndex(bgQueueTypeId) < PLAYER_MAX_BATTLEGROUND_QUEUES)
+        return false; // //player is already in this queue
+
+    // check if has free queue slots
+    if (!player->HasFreeBattlegroundQueueId())
+        return false;
+
+    uint32 ateamId = 0;
+
+    if (isRated)
     {
-        if (!player)
-            return false;
-
-        if (player->HasHealSpec() && (sConfigMgr->GetOption<bool>("Arena1v1.PreventHealingTalents", false)))
+        ateamId = player->GetArenaTeamId(ARENA_SLOT_1V1);
+        ArenaTeam* at = sArenaTeamMgr->GetArenaTeamById(ateamId);
+        if (!at)
         {
-            ChatHandler(player->GetSession()).SendSysMessage("You can't join because you have forbidden talents (Heal)");
+            player->GetSession()->SendNotInArenaTeamPacket(arenatype);
             return false;
         }
 
-        if (player->HasTankSpec() && (sConfigMgr->GetOption<bool>("Arena1v1.PreventTankTalents", false)))
-        {
-            ChatHandler(player->GetSession()).SendSysMessage("You can't join because you have forbidden talents (Tank)");
-            return false;
-        }
-
-        return true;
+        // get the team rating for queueing
+        arenaRating = std::max(0u, at->GetRating());
+        matchmakerRating = arenaRating;
+        // the arenateam id must match for everyone in the group
     }
-};
+
+    BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(bgQueueTypeId);
+    BattlegroundTypeId bgTypeId = BATTLEGROUND_AA;
+
+    bg->SetRated(isRated);
+    bg->SetMaxPlayersPerTeam(1);
+
+    GroupQueueInfo* ginfo = bgQueue.AddGroup(player, nullptr, bgTypeId, bracketEntry, arenatype, isRated != 0, false, arenaRating, matchmakerRating, ateamId, 0);
+    uint32 avgTime = bgQueue.GetAverageQueueWaitTime(ginfo);
+    uint32 queueSlot = player->AddBattlegroundQueueId(bgQueueTypeId);
+
+    // send status packet (in queue)
+    WorldPacket data;
+    sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, arenatype, TEAM_NEUTRAL, isRated);
+    player->GetSession()->SendPacket(&data);
+
+    sBattlegroundMgr->ScheduleQueueUpdate(matchmakerRating, arenatype, bgQueueTypeId, bgTypeId, bracketEntry->GetBracketId());
+
+    return true;
+}
+
+bool npc_1v1arena::CreateArenateam(Player* player, Creature* /* me */)
+{
+    if (!player)
+        return false;
+
+    uint8 slot = ArenaTeam::GetSlotByType(ARENA_TEAM_1V1);
+    //Just to make sure as some other module might edit this value
+    if (slot == 0)
+        return false;
+
+    // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
+    uint32 playerHonorPoints = player->GetHonorPoints();
+    uint32 playerArenaPoints = player->GetArenaPoints();
+    player->SetHonorPoints(0);
+    player->SetArenaPoints(0);
+
+    // Check if player is already in an arena team
+    if (player->GetArenaTeamId(slot))
+    {
+        player->GetSession()->SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName(), "You are already in an arena team!", ERR_ALREADY_IN_ARENA_TEAM);
+        return false;
+    }
+
+    // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
+    sArenaTeamMgr->RemoveArenaTeam(player->GetArenaTeamId(ARENA_SLOT_1V1));
+    deleteTeamArenaForPlayer(player);
+
+    // Create arena team
+    ArenaTeam* arenaTeam = new ArenaTeam();
+    if (!arenaTeam->Create(player->GetGUID(), ARENA_TEAM_1V1, player->GetName(), 4283124816, 45, 4294242303, 5, 4294705149))
+    {
+        delete arenaTeam;
+        return false;
+    }
+
+    // Register arena team
+    sArenaTeamMgr->AddArenaTeam(arenaTeam);
+
+    ChatHandler(player->GetSession()).SendSysMessage("1v1 Arenateam successfully created!");
+
+    // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
+    player->SetHonorPoints(playerHonorPoints);
+    player->SetArenaPoints(playerArenaPoints);
+
+    return true;
+}
+
+bool npc_1v1arena::Arena1v1CheckTalents(Player* player)
+{
+    if (!player)
+        return false;
+
+    if (player->HasHealSpec() && (sConfigMgr->GetOption<bool>("Arena1v1.PreventHealingTalents", false)))
+    {
+        ChatHandler(player->GetSession()).SendSysMessage("You can't join because you have forbidden talents (Heal)");
+        return false;
+    }
+
+    if (player->HasTankSpec() && (sConfigMgr->GetOption<bool>("Arena1v1.PreventTankTalents", false)))
+    {
+        ChatHandler(player->GetSession()).SendSysMessage("You can't join because you have forbidden talents (Tank)");
+        return false;
+    }
+
+    return true;
+}
+
 
 class team_1v1arena : public ArenaTeamScript
 {
