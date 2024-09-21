@@ -74,7 +74,7 @@ public:
             return false;
         }
 
-        if (!player->GetArenaTeamId(sConfigMgr->GetOption<uint32>("Arena1v1.ArenaSlotID", 3)))
+        if (!player->GetArenaTeamId(sConfigMgr->GetOption<uint32>("Arena1v1.ArenaSlotID", 3)) && isRated)
         {
             // create 1v1 team if player doesn't have it
             if (!Command1v1.CreateArenateam(player, nullptr))
