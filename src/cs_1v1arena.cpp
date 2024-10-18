@@ -49,19 +49,19 @@ public:
 
         if (!sConfigMgr->GetOption<bool>("Arena1v1.EnableCommand", true))
         {
-            ChatHandler(player->GetSession()).SendSysMessage("Join Arena 1v1 command is disabled.");
+            ChatHandler(player->GetSession()).SendSysMessage("加入竞技场 1v1 命令已禁用");
             return false;
         }
 
         if (!sConfigMgr->GetOption<bool>("Arena1v1.Enable", true))
         {
-            ChatHandler(player->GetSession()).SendSysMessage("Arena 1v1 is disabled.");
+            ChatHandler(player->GetSession()).SendSysMessage("竞技场 1v1 已禁用");
             return false;
         }
 
         if (player->IsInCombat())
         {
-            ChatHandler(player->GetSession()).SendSysMessage("Can't be in combat.");
+            ChatHandler(player->GetSession()).SendSysMessage("不能参加战斗");
             return false;
         }
 
@@ -70,7 +70,7 @@ public:
         uint32 minLevel = sConfigMgr->GetOption<uint32>("Arena1v1.MinLevel", 80);
         if (player->GetLevel() < minLevel)
         {
-            ChatHandler(player->GetSession()).PSendSysMessage("You need level {}+ to join solo arena.", minLevel);
+            ChatHandler(player->GetSession()).PSendSysMessage("您需要达到 level {}+ 级才能参加单人竞技场.", minLevel);
             return false;
         }
 
@@ -80,12 +80,12 @@ public:
             if (!Command1v1.CreateArenateam(player, nullptr))
                 return false;
 
-            handler->PSendSysMessage("Join again arena 1v1 rated!");
+            handler->PSendSysMessage("再次加入竞技场 1v1 评级!");
         }
         else
         {
             if (Command1v1.JoinQueueArena(player, nullptr, isRated))
-                handler->PSendSysMessage("You have joined the solo 1v1 arena queue {}.", isRated ? "Rated" : "UnRated");
+                handler->PSendSysMessage("您已加入单人 1v1 竞技场队列 queue {}.", isRated ? "评级" : "未评级");
         }
 
         return true;
