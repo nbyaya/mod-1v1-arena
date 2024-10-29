@@ -238,11 +238,19 @@ bool npc_1v1arena::OnGossipSelect(Player* player, Creature* creature, uint32 /*s
 
         case NPC_ARENA_1V1_ACTION_DISBAND_ARENA_TEAM:
         {
+            uint32 playerHonorPoints = player->GetHonorPoints();
+            uint32 playerArenaPoints = player->GetArenaPoints();
+
             WorldPacket Data;
             Data << player->GetArenaTeamId(ARENA_SLOT_1V1);
             player->GetSession()->HandleArenaTeamLeaveOpcode(Data);
             handler.SendSysMessage("Arenateam deleted!");
             CloseGossipMenuFor(player);
+
+            // hackfix: restore points
+            player->SetHonorPoints(playerHonorPoints);
+            player->SetArenaPoints(playerArenaPoints);
+
             return true;
         }
 
@@ -352,18 +360,18 @@ bool npc_1v1arena::CreateArenateam(Player* player, Creature* /* me */)
     if (slot == 0)
         return false;
 
-    // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
-    uint32 playerHonorPoints = player->GetHonorPoints();
-    uint32 playerArenaPoints = player->GetArenaPoints();
-    player->SetHonorPoints(0);
-    player->SetArenaPoints(0);
-
     // Check if player is already in an arena team
     if (player->GetArenaTeamId(slot))
     {
         player->GetSession()->SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName(), "You are already in an arena team!", ERR_ALREADY_IN_ARENA_TEAM);
         return false;
     }
+
+    // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
+    uint32 playerHonorPoints = player->GetHonorPoints();
+    uint32 playerArenaPoints = player->GetArenaPoints();
+    player->SetHonorPoints(0);
+    player->SetArenaPoints(0);
 
     // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
     sArenaTeamMgr->RemoveArenaTeam(player->GetArenaTeamId(ARENA_SLOT_1V1));
@@ -374,6 +382,11 @@ bool npc_1v1arena::CreateArenateam(Player* player, Creature* /* me */)
     if (!arenaTeam->Create(player->GetGUID(), ARENA_TEAM_1V1, player->GetName(), 4283124816, 45, 4294242303, 5, 4294705149))
     {
         delete arenaTeam;
+
+        // hackfix: restore points
+        player->SetHonorPoints(playerHonorPoints);
+        player->SetArenaPoints(playerArenaPoints);
+
         return false;
     }
 
@@ -383,6 +396,7 @@ bool npc_1v1arena::CreateArenateam(Player* player, Creature* /* me */)
     ChatHandler(player->GetSession()).SendSysMessage("1v1 Arenateam successfully created!");
 
     // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
+    // hackfix: restore points
     player->SetHonorPoints(playerHonorPoints);
     player->SetArenaPoints(playerArenaPoints);
 
