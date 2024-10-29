@@ -62,7 +62,7 @@ void deleteTeamArenaForPlayer(Player* player)
     if (queryPlayerTeam)
     {
         CharacterDatabase.Execute("DELETE FROM `arena_team` WHERE `captainGuid`={} AND `type`=1", player->GetGUID().GetCounter());
-        CharacterDatabase.Execute("DELETE FROM `arena_team_member` WHERE `guid`={}", player->GetGUID().GetCounter());
+        CharacterDatabase.Execute("DELETE FROM `arena_team_member` WHERE `guid`={} AND `type`=1", player->GetGUID().GetCounter());
     }
 }
 
@@ -416,7 +416,13 @@ public:
     {
         if (at->GetType() == ARENA_TEAM_1V1)
         {
-            points *= sConfigMgr->GetOption<float>("Arena1v1.ArenaPointsMulti", 0.64f);
+            const auto Members = at->GetMembers();
+            uint8 playerLevel = sCharacterCache->GetCharacterLevelByGuid(Members.front().Guid);
+
+            if (playerLevel >= sConfigMgr->GetOption<uint32>("Arena1v1.ArenaPointsMinLevel", 70))
+                points *= sConfigMgr->GetOption<float>("Arena1v1.ArenaPointsMulti", 0.64f);
+            else
+                points *= 0;
         }
     }
 
