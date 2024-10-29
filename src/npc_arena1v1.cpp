@@ -328,7 +328,7 @@ bool npc_1v1arena::JoinQueueArena(Player* player, Creature* /* me */, bool isRat
     bg->SetRated(isRated);
     bg->SetMaxPlayersPerTeam(1);
 
-    GroupQueueInfo* ginfo = bgQueue.AddGroup(player, nullptr, bgTypeId, bracketEntry, arenatype, isRated != 0, false, arenaRating, matchmakerRating, ateamId, 0);
+    GroupQueueInfo* ginfo = bgQueue.AddGroup(player, nullptr, bgTypeId, bracketEntry, arenatype, isRated, false, arenaRating, matchmakerRating, ateamId, 0);
     uint32 avgTime = bgQueue.GetAverageQueueWaitTime(ginfo);
     uint32 queueSlot = player->AddBattlegroundQueueId(bgQueueTypeId);
 
@@ -351,12 +351,6 @@ bool npc_1v1arena::CreateArenateam(Player* player, Creature* /* me */)
     //Just to make sure as some other module might edit this value
     if (slot == 0)
         return false;
-
-    // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
-    uint32 playerHonorPoints = player->GetHonorPoints();
-    uint32 playerArenaPoints = player->GetArenaPoints();
-    player->SetHonorPoints(0);
-    player->SetArenaPoints(0);
 
     // Check if player is already in an arena team
     if (player->GetArenaTeamId(slot))
@@ -381,10 +375,6 @@ bool npc_1v1arena::CreateArenateam(Player* player, Creature* /* me */)
     sArenaTeamMgr->AddArenaTeam(arenaTeam);
 
     ChatHandler(player->GetSession()).SendSysMessage("1v1 Arenateam successfully created!");
-
-    // This disaster is the result of changing the MAX_ARENA_SLOT from 3 to 4.
-    player->SetHonorPoints(playerHonorPoints);
-    player->SetArenaPoints(playerArenaPoints);
 
     return true;
 }
